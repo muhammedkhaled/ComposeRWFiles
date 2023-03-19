@@ -49,77 +49,10 @@ class MainActivity : ComponentActivity() {
 
     @RequiresApi(Build.VERSION_CODES.R)
     @Composable
-    fun PermissionScreen(context: Context) {
-        val activity = context as Activity
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            ActivityCompat.requestPermissions(
-                activity,
-                arrayOf(
-                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                    Manifest.permission.MANAGE_EXTERNAL_STORAGE
-                ),
-                23
-            )
-            RWFiles()
-        } else {
-            if (Environment.isExternalStorageManager()) {
-                RWFiles()
-            } else {
-                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                intent.addCategory("android.intent.category.DEFAULT")
-                intent.data = Uri.parse(String.format("package:%s", context.packageName))
-                context.startActivity(intent)
-            }
-        }
-
-    }
-
-    @RequiresApi(Build.VERSION_CODES.R)
-    @Composable
     fun RWFiles() {
         val context = LocalContext.current
-        val activity = context as Activity
         val message = remember { mutableStateOf("") }
         val txtMsg = remember { mutableStateOf("") }
-        val lifecycleOwner = LocalLifecycleOwner.current
-        DisposableEffect(
-            key1 = lifecycleOwner,
-            effect = {
-                val observer = LifecycleEventObserver { _, event ->
-                    if (event == Lifecycle.Event.ON_START) {
-                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                            ActivityCompat.requestPermissions(
-                                activity,
-                                arrayOf(
-                                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                                    Manifest.permission.MANAGE_EXTERNAL_STORAGE
-                                ),
-                                23
-                            )
-                        } else {
-                            if (Environment.isExternalStorageManager()) {
-
-                            } else {
-                                val intent =
-                                    Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                                intent.addCategory("android.intent.category.DEFAULT")
-                                intent.data =
-                                    Uri.parse(String.format("package:%s", context.packageName))
-                                context.startActivity(intent)
-                            }
-                        }
-
-                    }
-                }
-                lifecycleOwner.lifecycle.addObserver(observer)
-
-                onDispose {
-                    lifecycleOwner.lifecycle.removeObserver(observer)
-                }
-            }
-        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -140,24 +73,22 @@ class MainActivity : ComponentActivity() {
             Spacer(modifier = Modifier.height(16.dp))
             Row {
                 Button(onClick = {
-                    val folder: File =
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-
-                    val file = File(folder, "Hassan.txt")
-                    writeFiles(file, message.value, context)
-                    Toast.makeText(context, "DATA SAVED", Toast.LENGTH_SHORT).show()
-
+                    if (Environment.isExternalStorageManager()) {
+                        writeFiles(message.value)
+                        Toast.makeText(context, "DATA SAVED", Toast.LENGTH_SHORT).show()
+                    } else {
+                        requestPermission()
+                    }
                 }) {
                     Text(text = "Save")
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Button(onClick = {
-                    val folder =
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                    val file = File(folder, "Hassan.txt")
-                    val data: String = getData(file)
-                    txtMsg.value = data
-
+                    if (Environment.isExternalStorageManager()) {
+                        txtMsg.value = getData()
+                    } else {
+                        requestPermission()
+                    }
                 }) {
                     Text(text = "Load")
                 }
@@ -165,8 +96,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun getData(): String {
+        val folder =
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val myFile = File(folder, "Hassan.txt")
 
-    private fun getData(myFile: File): String {
         var fileInPutStream: FileInputStream? = null
         try {
             fileInPutStream = FileInputStream(myFile)
@@ -191,7 +125,11 @@ class MainActivity : ComponentActivity() {
     }
 
 
-    private fun writeFiles(file: File, data: String, context: Context) {
+    private fun writeFiles(data: String) {
+        val folder =
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val file = File(folder, "Hassan.txt")
+
         var fileOutputStream: FileOutputStream? = null
         try {
             fileOutputStream = FileOutputStream(file)
@@ -216,6 +154,28 @@ class MainActivity : ComponentActivity() {
         RWFiles()
     }
 
+
+    private fun requestPermission(){
+        val activity = this as Activity
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            ActivityCompat.requestPermissions(
+                activity,
+                arrayOf(
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    Manifest.permission.MANAGE_EXTERNAL_STORAGE
+                ),
+                23
+            )
+        } else {
+            val intent =
+                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+            intent.addCategory("android.intent.category.DEFAULT")
+            intent.data =
+                Uri.parse(String.format("package:%s", this.packageName))
+            this.startActivity(intent)
+        }
+    }
 }
 
 
